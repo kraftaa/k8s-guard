@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: prod
+spec:
+  replicas: 8
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      nodeSelector:
+        role: web
+      containers:
+        - name: api
+          image: private-registry.local/app/api:latest
+          resources:
+            requests:
+              cpu: "300m"
+              memory: "1500Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          envFrom:
+            - configMapRef:
+                name: app-config-v2
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            timeoutSeconds: 1
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8080
+            timeoutSeconds: 1
+            periodSeconds: 5
+            failureThreshold: 2
+      imagePullSecrets: []

@@ -1,0 +1,32 @@
+use clap::{Parser, ValueEnum};
+use std::path::PathBuf;
+
+#[derive(Parser, Debug)]
+#[command(
+    name = "k8s-diff-explainer",
+    about = "Explain rollout risk of Kubernetes manifest changes"
+)]
+pub struct Cli {
+    /// Old/baseline manifest file
+    pub old: PathBuf,
+    /// New/target manifest file
+    pub new: PathBuf,
+    /// Output format
+    #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
+    pub format: OutputFormat,
+    /// Fail CI when overall risk meets or exceeds this level
+    #[arg(long = "fail-on", value_enum)]
+    pub fail_on: Option<FailThreshold>,
+}
+
+#[derive(Copy, Clone, Debug, ValueEnum, PartialEq, Eq)]
+pub enum OutputFormat {
+    Text,
+    Json,
+}
+
+#[derive(Copy, Clone, Debug, ValueEnum, PartialEq, Eq)]
+pub enum FailThreshold {
+    Medium,
+    High,
+}
