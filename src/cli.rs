@@ -17,6 +17,9 @@ pub struct Cli {
     /// Fail CI when overall risk meets or exceeds this level
     #[arg(long = "fail-on", value_enum)]
     pub fail_on: Option<FailThreshold>,
+    /// Enable experimental rules (selector drift, etc.)
+    #[arg(long)]
+    pub experimental: bool,
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum, PartialEq, Eq)]

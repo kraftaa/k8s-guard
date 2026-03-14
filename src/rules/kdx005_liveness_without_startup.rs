@@ -51,20 +51,14 @@ impl Rule for LivenessWithoutStartupRule {
 
 fn probe_strictness(old: &crate::model::ProbeLite, new: &crate::model::ProbeLite) -> i32 {
     let mut score = 0;
-    if let (Some(o), Some(n)) = (old.timeout_seconds, new.timeout_seconds) {
-        if n < o {
-            score += 2;
-        }
+    if let (Some(o), Some(n)) = (old.timeout_seconds, new.timeout_seconds) && n < o {
+        score += 2;
     }
-    if let (Some(o), Some(n)) = (old.failure_threshold, new.failure_threshold) {
-        if n < o {
-            score += 2;
-        }
+    if let (Some(o), Some(n)) = (old.failure_threshold, new.failure_threshold) && n < o {
+        score += 2;
     }
-    if let (Some(o), Some(n)) = (old.period_seconds, new.period_seconds) {
-        if n < o {
-            score += 1;
-        }
+    if let (Some(o), Some(n)) = (old.period_seconds, new.period_seconds) && n < o {
+        score += 1;
     }
     score
 }
@@ -80,11 +74,5 @@ fn summarize_probe(p: &crate::model::ProbeLite) -> String {
         .unwrap_or_else(|| "period=default".to_string());
     let path = p.path.clone().unwrap_or_else(|| "path?".to_string());
     let port = p.port.clone().unwrap_or_else(|| "port?".to_string());
-    format!(
-        "{} {} {} {}",
-        p.probe_type,
-        timeout,
-        period,
-        format!("{path}:{port}")
-    )
+    format!("{} {} {} {path}:{port}", p.probe_type, timeout, period)
 }

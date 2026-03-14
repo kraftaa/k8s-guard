@@ -7,6 +7,7 @@ pub struct WorkloadKey {
     pub namespace: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub struct WorkloadSpec {
     pub key: WorkloadKey,
@@ -16,8 +17,11 @@ pub struct WorkloadSpec {
     pub tolerations: Vec<TolerationLite>,
     pub has_required_node_affinity: bool,
     pub image_pull_secrets: Vec<String>,
+    pub selector_labels: BTreeMap<String, String>,
+    pub template_labels: BTreeMap<String, String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub struct ContainerSpecLite {
     pub name: String,
@@ -39,12 +43,14 @@ pub struct ContainerSpecLite {
     pub config_map_refs: BTreeSet<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub struct EnvValueLite {
     pub value: Option<String>,
     pub from: Option<EnvFrom>,
 }
 
+#[allow(dead_code, clippy::enum_variant_names)]
 #[derive(Debug, Clone)]
 pub enum EnvFrom {
     SecretKeyRef { name: String, key: Option<String> },
@@ -53,6 +59,7 @@ pub enum EnvFrom {
     ResourceFieldRef,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub struct ContainerPortLite {
     pub container_port: Option<i32>,
@@ -60,6 +67,7 @@ pub struct ContainerPortLite {
     pub protocol: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub struct ProbeLite {
     pub probe_type: String, // http,tcp,exec
@@ -72,6 +80,7 @@ pub struct ProbeLite {
     pub initial_delay_seconds: Option<i32>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Default)]
 pub struct TolerationLite {
     pub key: Option<String>,

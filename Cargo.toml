@@ -2,6 +2,9 @@
 name = "k8s-guard"
 version = "0.1.0"
 edition = "2024"
+description = "Deterministic rollout risk explainer for Kubernetes manifest diffs"
+license = "MIT"
+readme = "README.md"
 
 [[bin]]
 name = "k8s-diff-explainer"

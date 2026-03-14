@@ -8,6 +8,7 @@ mod kdx007_env_removed;
 mod kdx008_config_ref_changed;
 mod kdx009_scheduling_tightened;
 mod kdx010_replica_pressure;
+mod kdx011_selector_changed;
 pub mod traits;
 mod util;
 
@@ -16,8 +17,8 @@ use crate::model::WorkloadSpec;
 use traits::Rule;
 pub use util::*;
 
-pub fn run_rules(old: &WorkloadSpec, new: &WorkloadSpec) -> Vec<Finding> {
-    let rules: Vec<Box<dyn Rule>> = vec![
+pub fn run_rules(old: &WorkloadSpec, new: &WorkloadSpec, experimental: bool) -> Vec<Finding> {
+    let mut rules: Vec<Box<dyn Rule>> = vec![
         Box::new(kdx001_memory_limit_reduced::MemoryLimitReducedRule),
         Box::new(kdx002_memory_request_increased::MemoryRequestIncreasedRule),
         Box::new(kdx003_cpu_reduced::CpuReducedRule),
@@ -29,6 +30,9 @@ pub fn run_rules(old: &WorkloadSpec, new: &WorkloadSpec) -> Vec<Finding> {
         Box::new(kdx009_scheduling_tightened::SchedulingTightenedRule),
         Box::new(kdx010_replica_pressure::ReplicaPressureRule),
     ];
+    if experimental {
+        rules.push(Box::new(kdx011_selector_changed::SelectorChangedRule));
+    }
 
     let mut findings = Vec::new();
     for rule in rules {

@@ -18,7 +18,7 @@ pub fn normalize_workload(value: &Value) -> anyhow::Result<Option<WorkloadSpec>>
     }
 
     let metadata = root
-        .get(&Value::from("metadata"))
+        .get(Value::from("metadata"))
         .and_then(Value::as_mapping)
         .ok_or_else(|| anyhow!("missing metadata block"))?;
 
@@ -27,15 +27,26 @@ pub fn normalize_workload(value: &Value) -> anyhow::Result<Option<WorkloadSpec>>
     let namespace = get_string(metadata, "namespace");
 
     let spec = root
-        .get(&Value::from("spec"))
+        .get(Value::from("spec"))
         .and_then(Value::as_mapping)
         .ok_or_else(|| anyhow!("missing spec block for {}", name))?;
 
+    let selector_labels = collect_match_labels(spec);
     let replicas = get_i64(spec, "replicas").map(|v| v as i32);
-    let template_spec = spec
-        .get(&Value::from("template"))
+    let template = spec
+        .get(Value::from("template"))
         .and_then(Value::as_mapping)
-        .and_then(|t| t.get(&Value::from("spec")).and_then(Value::as_mapping))
+        .ok_or_else(|| anyhow!("missing spec.template for {}", name))?;
+
+    let template_labels = template
+        .get(Value::from("metadata"))
+        .and_then(Value::as_mapping)
+        .map(|m| collect_string_map(m, "labels"))
+        .unwrap_or_default();
+
+    let template_spec = template
+        .get(Value::from("spec"))
+        .and_then(Value::as_mapping)
         .ok_or_else(|| anyhow!("missing spec.template.spec for {}", name))?;
 
     let volumes = collect_volumes(template_spec);
@@ -45,7 +56,7 @@ pub fn normalize_workload(value: &Value) -> anyhow::Result<Option<WorkloadSpec>>
     let has_required_node_affinity = detect_required_node_affinity(template_spec);
 
     let containers_val = template_spec
-        .get(&Value::from("containers"))
+        .get(Value::from("containers"))
         .and_then(Value::as_sequence)
         .ok_or_else(|| anyhow!("spec.template.spec.containers missing for {}", name))?;
 
@@ -66,13 +77,15 @@ pub fn normalize_workload(value: &Value) -> anyhow::Result<Option<WorkloadSpec>>
         tolerations,
         has_required_node_affinity,
         image_pull_secrets,
+        selector_labels,
+        template_labels,
     };
 
     Ok(Some(workload))
 }
 
 fn collect_image_pull_secrets(spec: &Mapping) -> Vec<String> {
-    spec.get(&Value::from("imagePullSecrets"))
+    spec.get(Value::from("imagePullSecrets"))
         .and_then(Value::as_sequence)
         .map(|seq| {
             seq.iter()
@@ -84,18 +97,43 @@ fn collect_image_pull_secrets(spec: &Mapping) -> Vec<String> {
 }
 
 fn collect_node_selector(spec: &Mapping) -> BTreeMap<String, String> {
-    spec.get(&Value::from("nodeSelector"))
+    spec.get(Value::from("nodeSelector"))
         .and_then(Value::as_mapping)
         .map(|m| {
-            m.iter()
-                .filter_map(|(k, v)| Some((k.as_str()?.to_string(), v.as_str()?.to_string())))
-                .collect()
+            collect_string_map_direct(m)
         })
         .unwrap_or_default()
 }
 
+fn collect_match_labels(spec: &Mapping) -> BTreeMap<String, String> {
+    spec.get(Value::from("selector"))
+        .and_then(Value::as_mapping)
+        .and_then(|sel| {
+            sel.get(Value::from("matchLabels"))
+                .and_then(Value::as_mapping)
+        })
+        .map(|m| {
+            collect_string_map_direct(m)
+        })
+        .unwrap_or_default()
+}
+
+fn collect_string_map(parent: &Mapping, key: &str) -> BTreeMap<String, String> {
+    parent
+        .get(Value::from(key))
+        .and_then(Value::as_mapping)
+        .map(collect_string_map_direct)
+        .unwrap_or_default()
+}
+
+fn collect_string_map_direct(m: &Mapping) -> BTreeMap<String, String> {
+    m.iter()
+        .filter_map(|(k, v)| Some((k.as_str()?.to_string(), v.as_str()?.to_string())))
+        .collect()
+}
+
 fn collect_tolerations(spec: &Mapping) -> Vec<TolerationLite> {
-    spec.get(&Value::from("tolerations"))
+    spec.get(Value::from("tolerations"))
         .and_then(Value::as_sequence)
         .map(|seq| {
             seq.iter()
@@ -112,14 +150,14 @@ fn collect_tolerations(spec: &Mapping) -> Vec<TolerationLite> {
 }
 
 fn detect_required_node_affinity(spec: &Mapping) -> bool {
-    spec.get(&Value::from("affinity"))
+    spec.get(Value::from("affinity"))
         .and_then(Value::as_mapping)
         .and_then(|aff| {
-            aff.get(&Value::from("nodeAffinity"))
+            aff.get(Value::from("nodeAffinity"))
                 .and_then(Value::as_mapping)
         })
         .and_then(|na| {
-            na.get(&Value::from(
+            na.get(Value::from(
                 "requiredDuringSchedulingIgnoredDuringExecution",
             ))
             .and_then(Value::as_mapping)
@@ -136,32 +174,28 @@ enum VolumeRef {
 
 fn collect_volumes(spec: &Mapping) -> HashMap<String, VolumeRef> {
     let mut map = HashMap::new();
-    if let Some(seq) = spec
-        .get(&Value::from("volumes"))
-        .and_then(Value::as_sequence)
-    {
+    if let Some(seq) = spec.get(Value::from("volumes")).and_then(Value::as_sequence) {
         for v in seq {
-            if let Some(m) = v.as_mapping() {
-                if let Some(name) = get_string(m, "name") {
-                    if let Some(secret) = m.get(&Value::from("secret")).and_then(Value::as_mapping)
-                    {
-                        if let Some(secret_name) = get_string(secret, "secretName") {
-                            map.insert(name.clone(), VolumeRef::Secret(secret_name));
-                            continue;
-                        }
-                        if let Some(secret_name) = get_string(secret, "name") {
-                            map.insert(name.clone(), VolumeRef::Secret(secret_name));
-                            continue;
-                        }
+            if let Some(m) = v.as_mapping()
+                && let Some(name) = get_string(m, "name")
+            {
+                if let Some(secret) = m.get(Value::from("secret")).and_then(Value::as_mapping) {
+                    if let Some(secret_name) = get_string(secret, "secretName") {
+                        map.insert(name.clone(), VolumeRef::Secret(secret_name));
+                        continue;
                     }
-                    if let Some(cm) = m.get(&Value::from("configMap")).and_then(Value::as_mapping) {
-                        if let Some(cm_name) = get_string(cm, "name") {
-                            map.insert(name.clone(), VolumeRef::ConfigMap(cm_name));
-                            continue;
-                        }
+                    if let Some(secret_name) = get_string(secret, "name") {
+                        map.insert(name.clone(), VolumeRef::Secret(secret_name));
+                        continue;
                     }
-                    map.insert(name, VolumeRef::Other);
                 }
+                if let Some(cm) = m.get(Value::from("configMap")).and_then(Value::as_mapping)
+                    && let Some(cm_name) = get_string(cm, "name")
+                {
+                    map.insert(name.clone(), VolumeRef::ConfigMap(cm_name));
+                    continue;
+                }
+                map.insert(name, VolumeRef::Other);
             }
         }
     }
@@ -183,88 +217,84 @@ fn parse_container(
         parse_resources(m);
 
     let readiness_probe = m
-        .get(&Value::from("readinessProbe"))
+        .get(Value::from("readinessProbe"))
         .and_then(Value::as_mapping)
         .map(|p| parse_probe(p, "readiness"));
 
     let liveness_probe = m
-        .get(&Value::from("livenessProbe"))
+        .get(Value::from("livenessProbe"))
         .and_then(Value::as_mapping)
         .map(|p| parse_probe(p, "liveness"));
 
     let startup_probe = m
-        .get(&Value::from("startupProbe"))
+        .get(Value::from("startupProbe"))
         .and_then(Value::as_mapping)
         .map(|p| parse_probe(p, "startup"));
 
     let mut env = BTreeMap::new();
     let mut secret_refs = BTreeSet::new();
     let mut config_map_refs = BTreeSet::new();
-    if let Some(env_seq) = m.get(&Value::from("env")).and_then(Value::as_sequence) {
+    if let Some(env_seq) = m.get(Value::from("env")).and_then(Value::as_sequence) {
         for e in env_seq {
-            if let Some(em) = e.as_mapping() {
-                if let Some(env_name) = get_string(em, "name") {
-                    let mut entry = EnvValueLite::default();
-                    if let Some(val) = get_string(em, "value") {
-                        entry.value = Some(val);
-                    }
-                    if let Some(vf) = em
-                        .get(&Value::from("valueFrom"))
-                        .and_then(Value::as_mapping)
-                    {
-                        if let Some(sk) = vf
-                            .get(&Value::from("secretKeyRef"))
-                            .and_then(Value::as_mapping)
-                        {
-                            if let Some(secret_name) = get_string(sk, "name") {
-                                secret_refs.insert(secret_name.clone());
-                                entry.from = Some(EnvFrom::SecretKeyRef {
-                                    name: secret_name,
-                                    key: get_string(sk, "key"),
-                                });
-                            }
-                        } else if let Some(cm) = vf
-                            .get(&Value::from("configMapKeyRef"))
-                            .and_then(Value::as_mapping)
-                        {
-                            if let Some(cm_name) = get_string(cm, "name") {
-                                config_map_refs.insert(cm_name.clone());
-                                entry.from = Some(EnvFrom::ConfigMapKeyRef {
-                                    name: cm_name,
-                                    key: get_string(cm, "key"),
-                                });
-                            }
-                        } else if vf.get(&Value::from("fieldRef")).is_some() {
-                            entry.from = Some(EnvFrom::FieldRef);
-                        } else if vf.get(&Value::from("resourceFieldRef")).is_some() {
-                            entry.from = Some(EnvFrom::ResourceFieldRef);
-                        }
-                    }
-                    env.insert(env_name, entry);
+            if let Some(em) = e.as_mapping()
+                && let Some(env_name) = get_string(em, "name")
+            {
+                let mut entry = EnvValueLite::default();
+                if let Some(val) = get_string(em, "value") {
+                    entry.value = Some(val);
                 }
+                if let Some(vf) = em
+                    .get(Value::from("valueFrom"))
+                    .and_then(Value::as_mapping)
+                {
+                    if let Some(sk) = vf
+                        .get(Value::from("secretKeyRef"))
+                        .and_then(Value::as_mapping)
+                        && let Some(secret_name) = get_string(sk, "name")
+                    {
+                        secret_refs.insert(secret_name.clone());
+                        entry.from = Some(EnvFrom::SecretKeyRef {
+                            name: secret_name,
+                            key: get_string(sk, "key"),
+                        });
+                    } else if let Some(cm) = vf
+                        .get(Value::from("configMapKeyRef"))
+                        .and_then(Value::as_mapping)
+                        && let Some(cm_name) = get_string(cm, "name")
+                    {
+                        config_map_refs.insert(cm_name.clone());
+                        entry.from = Some(EnvFrom::ConfigMapKeyRef {
+                            name: cm_name,
+                            key: get_string(cm, "key"),
+                        });
+                    } else if vf.get(Value::from("fieldRef")).is_some() {
+                        entry.from = Some(EnvFrom::FieldRef);
+                    } else if vf.get(Value::from("resourceFieldRef")).is_some() {
+                        entry.from = Some(EnvFrom::ResourceFieldRef);
+                    }
+                }
+                env.insert(env_name, entry);
             }
         }
     }
 
     // envFrom references
-    if let Some(env_from) = m.get(&Value::from("envFrom")).and_then(Value::as_sequence) {
+    if let Some(env_from) = m.get(Value::from("envFrom")).and_then(Value::as_sequence) {
         for e in env_from {
             if let Some(em) = e.as_mapping() {
                 if let Some(sr) = em
-                    .get(&Value::from("secretRef"))
+                    .get(Value::from("secretRef"))
                     .and_then(Value::as_mapping)
+                    && let Some(name) = get_string(sr, "name")
                 {
-                    if let Some(name) = get_string(sr, "name") {
-                        secret_refs.insert(name);
-                    }
+                    secret_refs.insert(name);
                 }
                 if let Some(cr) = em
-                    .get(&Value::from("configMapRef"))
+                    .get(Value::from("configMapRef"))
                     .and_then(Value::as_mapping)
+                    && let Some(name) = get_string(cr, "name")
                 {
-                    if let Some(name) = get_string(cr, "name") {
-                        config_map_refs.insert(name);
-                    }
+                    config_map_refs.insert(name);
                 }
             }
         }
@@ -272,30 +302,29 @@ fn parse_container(
 
     // Volume mounts -> capture referenced Secret/ConfigMap names
     if let Some(mounts) = m
-        .get(&Value::from("volumeMounts"))
+        .get(Value::from("volumeMounts"))
         .and_then(Value::as_sequence)
     {
         for mount in mounts {
-            if let Some(mm) = mount.as_mapping() {
-                if let Some(vname) = get_string(mm, "name") {
-                    if let Some(vref) = volumes.get(&vname) {
-                        match vref {
-                            VolumeRef::Secret(name) => {
-                                secret_refs.insert(name.clone());
-                            }
-                            VolumeRef::ConfigMap(name) => {
-                                config_map_refs.insert(name.clone());
-                            }
-                            VolumeRef::Other => {}
-                        }
+            if let Some(mm) = mount.as_mapping()
+                && let Some(vname) = get_string(mm, "name")
+                && let Some(vref) = volumes.get(&vname)
+            {
+                match vref {
+                    VolumeRef::Secret(name) => {
+                        secret_refs.insert(name.clone());
                     }
+                    VolumeRef::ConfigMap(name) => {
+                        config_map_refs.insert(name.clone());
+                    }
+                    VolumeRef::Other => {}
                 }
             }
         }
     }
 
     let ports = m
-        .get(&Value::from("ports"))
+        .get(Value::from("ports"))
         .and_then(Value::as_sequence)
         .map(|seq| {
             seq.iter()
@@ -332,30 +361,30 @@ fn parse_resources(m: &Mapping) -> (Option<i64>, Option<i64>, Option<i64>, Optio
     let mut mem_req = None;
     let mut mem_lim = None;
 
-    if let Some(resources) = m.get(&Value::from("resources")).and_then(Value::as_mapping) {
+    if let Some(resources) = m.get(Value::from("resources")).and_then(Value::as_mapping) {
         if let Some(req) = resources
-            .get(&Value::from("requests"))
+            .get(Value::from("requests"))
             .and_then(Value::as_mapping)
         {
             cpu_req = req
-                .get(&Value::from("cpu"))
+                .get(Value::from("cpu"))
                 .and_then(Value::as_str)
                 .and_then(parse_cpu_to_millis);
             mem_req = req
-                .get(&Value::from("memory"))
+                .get(Value::from("memory"))
                 .and_then(Value::as_str)
                 .and_then(parse_memory_to_bytes);
         }
         if let Some(lim) = resources
-            .get(&Value::from("limits"))
+            .get(Value::from("limits"))
             .and_then(Value::as_mapping)
         {
             cpu_lim = lim
-                .get(&Value::from("cpu"))
+                .get(Value::from("cpu"))
                 .and_then(Value::as_str)
                 .and_then(parse_cpu_to_millis);
             mem_lim = lim
-                .get(&Value::from("memory"))
+                .get(Value::from("memory"))
                 .and_then(Value::as_str)
                 .and_then(parse_memory_to_bytes);
         }
@@ -370,14 +399,14 @@ fn parse_probe(p: &Mapping, probe_type: &str) -> ProbeLite {
         ..Default::default()
     };
 
-    if let Some(http) = p.get(&Value::from("httpGet")).and_then(Value::as_mapping) {
+    if let Some(http) = p.get(Value::from("httpGet")).and_then(Value::as_mapping) {
         probe.probe_type = "http".to_string();
         probe.path = get_string(http, "path");
-        probe.port = get_port_string(http.get(&Value::from("port")));
-    } else if let Some(tcp) = p.get(&Value::from("tcpSocket")).and_then(Value::as_mapping) {
+        probe.port = get_port_string(http.get(Value::from("port")));
+    } else if let Some(tcp) = p.get(Value::from("tcpSocket")).and_then(Value::as_mapping) {
         probe.probe_type = "tcp".to_string();
-        probe.port = get_port_string(tcp.get(&Value::from("port")));
-    } else if p.get(&Value::from("exec")).is_some() {
+        probe.port = get_port_string(tcp.get(Value::from("port")));
+    } else if p.get(Value::from("exec")).is_some() {
         probe.probe_type = "exec".to_string();
     }
 
@@ -425,7 +454,7 @@ fn parse_memory_to_bytes(raw: &str) -> Option<i64> {
 
     if raw.ends_with('k') || raw.ends_with('K') {
         let num = raw
-            .trim_end_matches(|c| c == 'k' || c == 'K')
+            .trim_end_matches(&['k', 'K'][..])
             .parse::<f64>()
             .ok()?;
         return Some((num * 1000.0) as i64);
@@ -440,13 +469,13 @@ fn parse_memory_to_bytes(raw: &str) -> Option<i64> {
 }
 
 fn get_string(m: &Mapping, key: &str) -> Option<String> {
-    m.get(&Value::from(key))
+    m.get(Value::from(key))
         .and_then(Value::as_str)
         .map(|s| s.to_string())
 }
 
 fn get_i64(m: &Mapping, key: &str) -> Option<i64> {
-    m.get(&Value::from(key)).and_then(|v| match v {
+    m.get(Value::from(key)).and_then(|v| match v {
         Value::Number(n) => n.as_i64(),
         Value::String(s) => s.parse::<i64>().ok(),
         _ => None,

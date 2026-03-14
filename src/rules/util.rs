@@ -37,6 +37,7 @@ pub fn format_field_path(container: &str, suffix: &str) -> String {
     format!("spec.template.spec.containers[{}].{}", container, suffix)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn base_finding(
     rule_id: &str,
     severity: Severity,

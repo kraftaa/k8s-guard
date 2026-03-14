@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: fresh
+  namespace: prod
+spec:
+  serviceName: fresh
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fresh
+  template:
+    metadata:
+      labels:
+        app: fresh
+    spec:
+      containers:
+        - name: fresh
+          image: redis:7

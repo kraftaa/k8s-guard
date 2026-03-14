@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orphan
+  namespace: prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orphan
+  template:
+    metadata:
+      labels:
+        app: orphan
+    spec:
+      containers:
+        - name: orphan
+          image: nginx

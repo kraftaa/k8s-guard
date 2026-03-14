@@ -89,24 +89,18 @@ fn cpu_requests_increased(old: &WorkloadSpec, new: &WorkloadSpec) -> bool {
 fn readiness_stricter(old: &WorkloadSpec, new: &WorkloadSpec) -> bool {
     pair_containers(old, new).iter().any(|(oc, nc)| {
         match (&oc.readiness_probe, &nc.readiness_probe) {
-            (Some(op), Some(np)) => {
-                if let (Some(o), Some(nv)) = (op.timeout_seconds, np.timeout_seconds) {
-                    if nv < o {
-                        return true;
-                    }
-                }
-                if let (Some(o), Some(nv)) = (op.failure_threshold, np.failure_threshold) {
-                    if nv < o {
-                        return true;
-                    }
-                }
-                if let (Some(o), Some(nv)) = (op.period_seconds, np.period_seconds) {
-                    if nv < o {
-                        return true;
-                    }
-                }
-                op.path != np.path || op.port != np.port
+        (Some(op), Some(np)) => {
+            if let (Some(o), Some(nv)) = (op.timeout_seconds, np.timeout_seconds) && nv < o {
+                return true;
             }
+            if let (Some(o), Some(nv)) = (op.failure_threshold, np.failure_threshold) && nv < o {
+                return true;
+            }
+            if let (Some(o), Some(nv)) = (op.period_seconds, np.period_seconds) && nv < o {
+                return true;
+            }
+            op.path != np.path || op.port != np.port
+        }
             (None, Some(_)) => true,
             _ => false,
         }

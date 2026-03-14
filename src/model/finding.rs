@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Severity {
@@ -18,6 +19,7 @@ impl Display for Severity {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Confidence {
@@ -36,6 +38,7 @@ impl Display for Confidence {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum OverallRisk {

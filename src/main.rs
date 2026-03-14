@@ -23,30 +23,40 @@ fn main() -> anyhow::Result<()> {
     let mut results = Vec::new();
 
     for pair in pairs {
-        if let Some(new_spec) = pair.new {
-            match pair.old {
-                Some(old_spec) => {
-                    let findings = run_rules(&old_spec, &new_spec);
-                    let overall_risk = score_findings(&findings);
-                    results.push(ResourceResult {
-                        key: new_spec.key.clone(),
-                        findings,
-                        overall_risk,
-                        notes: Vec::new(),
-                    });
-                }
-                None => {
-                    results.push(ResourceResult {
-                        key: new_spec.key.clone(),
-                        findings: Vec::new(),
-                        overall_risk: OverallRisk::Safe,
-                        notes: vec![format!(
-                            "New resource detected: {}/{}; no baseline to diff.",
-                            new_spec.key.kind, new_spec.key.name
-                        )],
-                    });
-                }
+        match (pair.old, pair.new) {
+            (Some(old_spec), Some(new_spec)) => {
+                let findings = run_rules(&old_spec, &new_spec, cli.experimental);
+                let overall_risk = score_findings(&findings);
+                results.push(ResourceResult {
+                    key: new_spec.key.clone(),
+                    findings,
+                    overall_risk,
+                    notes: Vec::new(),
+                });
             }
+            (None, Some(new_spec)) => {
+                results.push(ResourceResult {
+                    key: new_spec.key.clone(),
+                    findings: Vec::new(),
+                    overall_risk: OverallRisk::Safe,
+                    notes: vec![format!(
+                        "New resource detected: {}/{}; no baseline to diff.",
+                        new_spec.key.kind, new_spec.key.name
+                    )],
+                });
+            }
+            (Some(old_spec), None) => {
+                results.push(ResourceResult {
+                    key: old_spec.key.clone(),
+                    findings: Vec::new(),
+                    overall_risk: OverallRisk::Safe,
+                    notes: vec![format!(
+                        "Resource removed in new manifest: {}/{}; risk not evaluated.",
+                        old_spec.key.kind, old_spec.key.name
+                    )],
+                });
+            }
+            (None, None) => {}
         }
     }
 

@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 
 #[derive(Debug)]
 pub struct WorkloadPair {
-    pub key: WorkloadKey,
     pub old: Option<WorkloadSpec>,
     pub new: Option<WorkloadSpec>,
 }
@@ -19,13 +18,19 @@ pub fn match_workloads(old: &[WorkloadSpec], new: &[WorkloadSpec]) -> Vec<Worklo
         let k = key_string(&nw.key);
         let old_item = old_map.remove(&k);
         pairs.push(WorkloadPair {
-            key: nw.key.clone(),
             old: old_item,
             new: Some(nw.clone()),
         });
     }
 
-    // Resources only in old manifest are currently ignored for rollout-risk
+    // Any resources that existed only in old manifest
+    for (_, ow) in old_map {
+        pairs.push(WorkloadPair {
+            old: Some(ow),
+            new: None,
+        });
+    }
+
     pairs
 }
 
