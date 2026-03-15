@@ -10,8 +10,9 @@ use cli::{Cli, FailThreshold, OutputFormat};
 use diff::match_workloads;
 use manifest::load_workloads;
 use model::OverallRisk;
-use report::{ResourceResult, render_json, render_text};
+use report::{ResourceResult, render_json, render_json_string, render_text, render_text_string};
 use rules::{run_rules, score_findings};
+use std::fs;
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -60,9 +61,26 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    match cli.format {
-        OutputFormat::Text => render_text(&results),
-        OutputFormat::Json => render_json(&results)?,
+    if let Some(path) = &cli.output {
+        match cli.format {
+            OutputFormat::Text => {
+                let body = render_text_string(&results);
+                fs::write(path, body)?;
+            }
+            OutputFormat::Json => {
+                let body = render_json_string(&results)?;
+                fs::write(path, body)?;
+            }
+        }
+        print_summary(&results);
+    } else {
+        match cli.format {
+            OutputFormat::Text => {
+                render_text(&results);
+                print_summary(&results);
+            }
+            OutputFormat::Json => render_json(&results)?,
+        }
     }
 
     if let Some(threshold) = cli.fail_on {
@@ -82,4 +100,30 @@ fn meets_threshold(risk: OverallRisk, threshold: FailThreshold) -> bool {
         FailThreshold::Medium => matches!(risk, OverallRisk::Medium | OverallRisk::High),
         FailThreshold::High => matches!(risk, OverallRisk::High),
     }
+}
+
+fn print_summary(results: &[ResourceResult]) {
+    let worst = results
+        .iter()
+        .map(|r| &r.overall_risk)
+        .max_by_key(|r| match r {
+            OverallRisk::Safe => 0,
+            OverallRisk::Low => 1,
+            OverallRisk::Medium => 2,
+            OverallRisk::High => 3,
+        })
+        .unwrap_or(&OverallRisk::Safe);
+    let total_findings: usize = results.iter().map(|r| r.findings.len()).sum();
+    let total_high: usize = results
+        .iter()
+        .flat_map(|r| &r.findings)
+        .filter(|f| matches!(f.severity, model::Severity::High))
+        .count();
+    println!(
+        "Summary: Overall {} ({} findings, {} high) across {} resource(s)",
+        worst,
+        total_findings,
+        total_high,
+        results.len()
+    );
 }

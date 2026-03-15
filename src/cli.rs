@@ -14,6 +14,9 @@ pub struct Cli {
     /// Output format
     #[arg(long, value_enum, default_value_t = OutputFormat::Text)]
     pub format: OutputFormat,
+    /// Write report to file (stdout still used for summary in text mode)
+    #[arg(long)]
+    pub output: Option<PathBuf>,
     /// Fail CI when overall risk meets or exceeds this level
     #[arg(long = "fail-on", value_enum)]
     pub fail_on: Option<FailThreshold>,

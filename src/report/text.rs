@@ -1,5 +1,6 @@
 use crate::model::Finding;
 use crate::report::ResourceResult;
+use std::fmt::Write as _;
 
 pub fn render_text(results: &[ResourceResult]) {
     for res in results {
@@ -38,6 +39,46 @@ pub fn render_text(results: &[ResourceResult]) {
     }
 }
 
+pub fn render_text_string(results: &[ResourceResult]) -> String {
+    let mut buf = String::new();
+    for res in results {
+        let _ = writeln!(buf, "Resource: {}/{}", res.key.kind, res.key.name);
+        if let Some(ns) = &res.key.namespace {
+            let _ = writeln!(buf, "Namespace: {}", ns);
+        }
+        let _ = writeln!(buf, "Overall Rollout Risk: {}", res.overall_risk);
+
+        for note in &res.notes {
+            let _ = writeln!(buf, "- {}", note);
+        }
+
+        if !res.findings.is_empty() {
+            let _ = writeln!(buf, "\nDetected Changes");
+            let _ = writeln!(buf, "----------------");
+            for (i, f) in res.findings.iter().enumerate() {
+                let change = arrow_change(f);
+                let _ = writeln!(
+                    buf,
+                    "{}. {}{}",
+                    i + 1,
+                    f.title,
+                    change.map(|c| format!(" ({})", c)).unwrap_or_default()
+                );
+            }
+        }
+
+        if res.findings.is_empty() {
+            let _ = writeln!(buf, "No risky changes detected.");
+        } else {
+            for f in &res.findings {
+                buf.push_str(&format_finding(f));
+            }
+        }
+        buf.push('\n');
+    }
+    buf
+}
+
 fn print_finding(f: &Finding) {
     println!("\n[{}] {} {}", f.severity, f.rule_id, f.title);
     if let Some(c) = &f.container {
@@ -63,6 +104,41 @@ fn print_finding(f: &Finding) {
             println!("- {}", s);
         }
     }
+}
+
+fn format_finding(f: &Finding) -> String {
+    let mut s = String::new();
+    let _ = writeln!(&mut s, "\n[{}] {} {}", f.severity, f.rule_id, f.title);
+    if let Some(c) = &f.container {
+        let _ = writeln!(&mut s, "Container: {}", c);
+    }
+    let _ = writeln!(&mut s, "Field: {}", f.field_path);
+    match (&f.old_value, &f.new_value) {
+        (Some(o), Some(n)) => {
+            let _ = writeln!(&mut s, "Change: {} \u{2192} {}", o, n);
+        }
+        (Some(o), None) => {
+            let _ = writeln!(&mut s, "Old: {}", o);
+        }
+        (None, Some(n)) => {
+            let _ = writeln!(&mut s, "New: {}", n);
+        }
+        _ => {}
+    }
+    if !f.likely_impact.is_empty() {
+        let _ = writeln!(&mut s, "\nLikely impact:");
+        for i in &f.likely_impact {
+            let _ = writeln!(&mut s, "- {}", i);
+        }
+    }
+    let _ = writeln!(&mut s, "\nWhy it matters:\n{}", f.why_it_matters);
+    if !f.suggested_fix.is_empty() {
+        let _ = writeln!(&mut s, "\nSuggested fix:");
+        for fix in &f.suggested_fix {
+            let _ = writeln!(&mut s, "- {}", fix);
+        }
+    }
+    s
 }
 
 fn arrow_change(f: &Finding) -> Option<String> {
