@@ -51,13 +51,19 @@ impl Rule for LivenessWithoutStartupRule {
 
 fn probe_strictness(old: &crate::model::ProbeLite, new: &crate::model::ProbeLite) -> i32 {
     let mut score = 0;
-    if let (Some(o), Some(n)) = (old.timeout_seconds, new.timeout_seconds) && n < o {
+    if let (Some(o), Some(n)) = (old.timeout_seconds, new.timeout_seconds)
+        && n < o
+    {
         score += 2;
     }
-    if let (Some(o), Some(n)) = (old.failure_threshold, new.failure_threshold) && n < o {
+    if let (Some(o), Some(n)) = (old.failure_threshold, new.failure_threshold)
+        && n < o
+    {
         score += 2;
     }
-    if let (Some(o), Some(n)) = (old.period_seconds, new.period_seconds) && n < o {
+    if let (Some(o), Some(n)) = (old.period_seconds, new.period_seconds)
+        && n < o
+    {
         score += 1;
     }
     score

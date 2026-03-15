@@ -1,6 +1,6 @@
 use crate::model::{
-    ContainerPortLite, ContainerSpecLite, EnvFrom, EnvValueLite, ProbeLite, TolerationLite,
-    WorkloadKey, WorkloadSpec,
+    ContainerPortLite, ContainerSpecLite, EnvFrom, EnvValueLite, LabelExpression, ProbeLite,
+    TolerationLite, WorkloadKey, WorkloadSpec,
 };
 use anyhow::anyhow;
 use serde_yaml::{Mapping, Value};
@@ -32,6 +32,7 @@ pub fn normalize_workload(value: &Value) -> anyhow::Result<Option<WorkloadSpec>>
         .ok_or_else(|| anyhow!("missing spec block for {}", name))?;
 
     let selector_labels = collect_match_labels(spec);
+    let selector_expressions = collect_match_expressions(spec);
     let replicas = get_i64(spec, "replicas").map(|v| v as i32);
     let template = spec
         .get(Value::from("template"))
@@ -79,6 +80,7 @@ pub fn normalize_workload(value: &Value) -> anyhow::Result<Option<WorkloadSpec>>
         image_pull_secrets,
         selector_labels,
         template_labels,
+        selector_expressions,
     };
 
     Ok(Some(workload))
@@ -99,9 +101,7 @@ fn collect_image_pull_secrets(spec: &Mapping) -> Vec<String> {
 fn collect_node_selector(spec: &Mapping) -> BTreeMap<String, String> {
     spec.get(Value::from("nodeSelector"))
         .and_then(Value::as_mapping)
-        .map(|m| {
-            collect_string_map_direct(m)
-        })
+        .map(collect_string_map_direct)
         .unwrap_or_default()
 }
 
@@ -112,8 +112,40 @@ fn collect_match_labels(spec: &Mapping) -> BTreeMap<String, String> {
             sel.get(Value::from("matchLabels"))
                 .and_then(Value::as_mapping)
         })
-        .map(|m| {
-            collect_string_map_direct(m)
+        .map(collect_string_map_direct)
+        .unwrap_or_default()
+}
+
+fn collect_match_expressions(spec: &Mapping) -> Vec<LabelExpression> {
+    spec.get(Value::from("selector"))
+        .and_then(Value::as_mapping)
+        .and_then(|sel| {
+            sel.get(Value::from("matchExpressions"))
+                .and_then(Value::as_sequence)
+        })
+        .map(|seq| {
+            seq.iter()
+                .filter_map(|v| v.as_mapping())
+                .filter_map(|m| {
+                    let key = get_string(m, "key")?;
+                    let operator = get_string(m, "operator")?;
+                    let values = m
+                        .get(Value::from("values"))
+                        .and_then(Value::as_sequence)
+                        .map(|vals| {
+                            vals.iter()
+                                .filter_map(Value::as_str)
+                                .map(String::from)
+                                .collect::<Vec<String>>()
+                        })
+                        .unwrap_or_default();
+                    Some(LabelExpression {
+                        key,
+                        operator,
+                        values,
+                    })
+                })
+                .collect()
         })
         .unwrap_or_default()
 }
@@ -174,7 +206,10 @@ enum VolumeRef {
 
 fn collect_volumes(spec: &Mapping) -> HashMap<String, VolumeRef> {
     let mut map = HashMap::new();
-    if let Some(seq) = spec.get(Value::from("volumes")).and_then(Value::as_sequence) {
+    if let Some(seq) = spec
+        .get(Value::from("volumes"))
+        .and_then(Value::as_sequence)
+    {
         for v in seq {
             if let Some(m) = v.as_mapping()
                 && let Some(name) = get_string(m, "name")
@@ -243,10 +278,7 @@ fn parse_container(
                 if let Some(val) = get_string(em, "value") {
                     entry.value = Some(val);
                 }
-                if let Some(vf) = em
-                    .get(Value::from("valueFrom"))
-                    .and_then(Value::as_mapping)
-                {
+                if let Some(vf) = em.get(Value::from("valueFrom")).and_then(Value::as_mapping) {
                     if let Some(sk) = vf
                         .get(Value::from("secretKeyRef"))
                         .and_then(Value::as_mapping)
@@ -282,9 +314,7 @@ fn parse_container(
     if let Some(env_from) = m.get(Value::from("envFrom")).and_then(Value::as_sequence) {
         for e in env_from {
             if let Some(em) = e.as_mapping() {
-                if let Some(sr) = em
-                    .get(Value::from("secretRef"))
-                    .and_then(Value::as_mapping)
+                if let Some(sr) = em.get(Value::from("secretRef")).and_then(Value::as_mapping)
                     && let Some(name) = get_string(sr, "name")
                 {
                     secret_refs.insert(name);
@@ -453,10 +483,7 @@ fn parse_memory_to_bytes(raw: &str) -> Option<i64> {
     }
 
     if raw.ends_with('k') || raw.ends_with('K') {
-        let num = raw
-            .trim_end_matches(&['k', 'K'][..])
-            .parse::<f64>()
-            .ok()?;
+        let num = raw.trim_end_matches(&['k', 'K'][..]).parse::<f64>().ok()?;
         return Some((num * 1000.0) as i64);
     }
 

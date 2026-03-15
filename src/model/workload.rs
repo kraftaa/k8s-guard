@@ -19,6 +19,7 @@ pub struct WorkloadSpec {
     pub image_pull_secrets: Vec<String>,
     pub selector_labels: BTreeMap<String, String>,
     pub template_labels: BTreeMap<String, String>,
+    pub selector_expressions: Vec<LabelExpression>,
 }
 
 #[allow(dead_code)]
@@ -87,4 +88,11 @@ pub struct TolerationLite {
     pub operator: Option<String>,
     pub value: Option<String>,
     pub effect: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct LabelExpression {
+    pub key: String,
+    pub operator: String,
+    pub values: Vec<String>,
 }

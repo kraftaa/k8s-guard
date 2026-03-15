@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-expr
+  namespace: prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-expr
+    matchExpressions:
+      - key: env
+        operator: In
+        values: ["prod"]
+  template:
+    metadata:
+      labels:
+        app: api-expr
+        env: prod
+    spec:
+      containers:
+        - name: api
+          image: nginx

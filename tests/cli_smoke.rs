@@ -117,3 +117,22 @@ fn experimental_rule_only_when_flagged() {
         "experimental rule should fire when flag is set"
     );
 }
+
+#[test]
+fn experimental_rule_catches_match_expressions() {
+    let mut cmd = Command::cargo_bin("k8s-diff-explainer").unwrap();
+    let output = cmd
+        .arg(fixture("selector-expr-old.yaml"))
+        .arg(fixture("selector-expr-new.yaml"))
+        .arg("--experimental")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let stdout = String::from_utf8(output).unwrap();
+    assert!(
+        stdout.contains("KDX011"),
+        "should flag selector drift when matchExpressions change"
+    );
+}
