@@ -17,6 +17,9 @@ pub struct Cli {
     /// Write report to file (stdout still used for summary in text mode)
     #[arg(long)]
     pub output: Option<PathBuf>,
+    /// Only print a one-line summary to stdout (full report can still go to --output)
+    #[arg(long)]
+    pub summary_only: bool,
     /// Fail CI when overall risk meets or exceeds this level
     #[arg(long = "fail-on", value_enum)]
     pub fail_on: Option<FailThreshold>,

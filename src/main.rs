@@ -72,15 +72,23 @@ fn main() -> anyhow::Result<()> {
                 fs::write(path, body)?;
             }
         }
-        print_summary(&results);
-    } else {
+    }
+
+    if !cli.summary_only {
         match cli.format {
             OutputFormat::Text => {
                 render_text(&results);
-                print_summary(&results);
             }
-            OutputFormat::Json => render_json(&results)?,
+            OutputFormat::Json => {
+                if cli.output.is_none() {
+                    render_json(&results)?;
+                }
+            }
         }
+    }
+
+    if cli.summary_only || matches!(cli.format, OutputFormat::Text) || cli.output.is_some() {
+        print_summary(&results);
     }
 
     if let Some(threshold) = cli.fail_on {

@@ -136,3 +136,45 @@ fn experimental_rule_catches_match_expressions() {
         "should flag selector drift when matchExpressions change"
     );
 }
+
+#[test]
+fn summary_only_text() {
+    let mut cmd = Command::cargo_bin("k8s-diff-explainer").unwrap();
+    let output = cmd
+        .arg(fixture("old.yaml"))
+        .arg(fixture("new.yaml"))
+        .arg("--summary-only")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let stdout = String::from_utf8(output).unwrap();
+    assert!(stdout.contains("Summary: Overall"));
+    assert!(
+        !stdout.contains("Resource:"),
+        "summary-only should not print full report"
+    );
+}
+
+#[test]
+fn summary_only_json() {
+    let mut cmd = Command::cargo_bin("k8s-diff-explainer").unwrap();
+    let output = cmd
+        .arg(fixture("old.yaml"))
+        .arg(fixture("new.yaml"))
+        .arg("--format")
+        .arg("json")
+        .arg("--summary-only")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let stdout = String::from_utf8(output).unwrap();
+    assert!(stdout.contains("Summary: Overall"));
+    assert!(
+        !stdout.contains('{'),
+        "summary-only should suppress JSON output on stdout"
+    );
+}
