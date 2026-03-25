@@ -64,6 +64,12 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
+    if !cli.workloads.is_empty() {
+        let allow: std::collections::HashSet<String> =
+            cli.workloads.iter().map(|s| s.to_string()).collect();
+        results.retain(|r| allow.contains(&r.key.name));
+    }
+
     if let Some(path) = &cli.output {
         match cli.format {
             OutputFormat::Text => {

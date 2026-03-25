@@ -23,6 +23,9 @@ pub struct Cli {
     /// Exit non-zero if any workloads are removed in the new manifest
     #[arg(long)]
     pub fail_on_removals: bool,
+    /// Only evaluate workloads whose metadata.name matches (repeatable)
+    #[arg(long = "workload")]
+    pub workloads: Vec<String>,
     /// Fail CI when overall risk meets or exceeds this level
     #[arg(long = "fail-on", value_enum)]
     pub fail_on: Option<FailThreshold>,
