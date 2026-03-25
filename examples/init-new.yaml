@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-init
+spec:
+  selector:
+    matchLabels:
+      app: api-init
+  template:
+    metadata:
+      labels:
+        app: api-init
+    spec:
+      initContainers:
+        - name: migrate
+          image: busybox
+          resources:
+            limits:
+              memory: 128Mi
+      containers:
+        - name: api
+          image: nginx

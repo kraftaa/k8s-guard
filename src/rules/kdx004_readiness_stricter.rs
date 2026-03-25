@@ -1,6 +1,6 @@
 use crate::model::{Confidence, Finding, Severity, WorkloadSpec};
 use crate::rules::traits::Rule;
-use crate::rules::{base_finding, format_field_path, pair_containers};
+use crate::rules::{base_finding, container_label, format_field_path, pair_containers};
 
 pub struct ReadinessProbeStricterRule;
 
@@ -27,7 +27,7 @@ impl Rule for ReadinessProbeStricterRule {
                             Confidence::High,
                             old,
                             new,
-                            Some(nc.name.clone()),
+                            Some(container_label(nc)),
                             format_field_path(&nc.name, "readinessProbe"),
                             "Readiness probe became stricter",
                             Some(summarize_probe(op)),
@@ -53,7 +53,7 @@ impl Rule for ReadinessProbeStricterRule {
                         Confidence::High,
                         old,
                         new,
-                        Some(nc.name.clone()),
+                        Some(container_label(nc)),
                         format_field_path(&nc.name, "readinessProbe"),
                         "Readiness probe added",
                         None,

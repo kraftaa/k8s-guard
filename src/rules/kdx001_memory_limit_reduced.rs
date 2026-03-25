@@ -1,6 +1,8 @@
 use crate::model::{Confidence, Severity, WorkloadSpec};
 use crate::rules::traits::Rule;
-use crate::rules::{base_finding, format_field_path, mem_to_string, pair_containers};
+use crate::rules::{
+    base_finding, container_label, format_field_path, mem_to_string, pair_containers,
+};
 
 pub struct MemoryLimitReducedRule;
 
@@ -23,13 +25,13 @@ impl Rule for MemoryLimitReducedRule {
                 };
                 findings.push(base_finding(
                     self.id(),
-                    severity,
-                    Confidence::High,
-                    old,
-                    new,
-                    Some(nc.name.clone()),
-                    format_field_path(&nc.name, "resources.limits.memory"),
-                    "Memory limit reduced",
+                        severity,
+                        Confidence::High,
+                        old,
+                        new,
+                        Some(container_label(nc)),
+                        format_field_path(&nc.name, "resources.limits.memory"),
+                        "Memory limit reduced",
                     Some(mem_to_string(old_mem)),
                     Some(mem_to_string(new_mem)),
                     vec!["OOMKilled", "CrashLoopBackOff"],

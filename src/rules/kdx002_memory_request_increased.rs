@@ -1,6 +1,8 @@
 use crate::model::{Confidence, Severity, WorkloadSpec};
 use crate::rules::traits::Rule;
-use crate::rules::{base_finding, format_field_path, mem_to_string, pair_containers};
+use crate::rules::{
+    base_finding, container_label, format_field_path, mem_to_string, pair_containers,
+};
 
 pub struct MemoryRequestIncreasedRule;
 
@@ -30,13 +32,13 @@ impl Rule for MemoryRequestIncreasedRule {
                     };
                     findings.push(base_finding(
                         self.id(),
-                        severity,
-                        Confidence::High,
-                        old,
-                        new,
-                        Some(nc.name.clone()),
-                        format_field_path(&nc.name, "resources.requests.memory"),
-                        "Memory request increased sharply",
+                            severity,
+                            Confidence::High,
+                            old,
+                            new,
+                            Some(container_label(nc)),
+                            format_field_path(&nc.name, "resources.requests.memory"),
+                            "Memory request increased sharply",
                         Some(mem_to_string(old_mem)),
                         Some(mem_to_string(new_mem)),
                         vec!["Pending pods", "Rollout may stall"],

@@ -66,6 +66,18 @@ pub fn normalize_workload(value: &Value) -> anyhow::Result<Option<WorkloadSpec>>
         containers.push(parse_container(c, &volumes)?);
     }
 
+    let mut init_containers = Vec::new();
+    if let Some(seq) = template_spec
+        .get(Value::from("initContainers"))
+        .and_then(Value::as_sequence)
+    {
+        for c in seq {
+            let mut ic = parse_container(c, &volumes)?;
+            ic.is_init = true;
+            init_containers.push(ic);
+        }
+    }
+
     let workload = WorkloadSpec {
         key: WorkloadKey {
             kind,
@@ -74,6 +86,7 @@ pub fn normalize_workload(value: &Value) -> anyhow::Result<Option<WorkloadSpec>>
         },
         replicas,
         containers,
+        init_containers,
         node_selector,
         tolerations,
         has_required_node_affinity,
@@ -371,6 +384,7 @@ fn parse_container(
     Ok(ContainerSpecLite {
         name,
         image,
+        is_init: false,
         cpu_request_millis,
         cpu_limit_millis,
         memory_request_bytes,

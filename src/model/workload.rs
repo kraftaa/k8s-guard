@@ -13,6 +13,7 @@ pub struct WorkloadSpec {
     pub key: WorkloadKey,
     pub replicas: Option<i32>,
     pub containers: Vec<ContainerSpecLite>,
+    pub init_containers: Vec<ContainerSpecLite>,
     pub node_selector: BTreeMap<String, String>,
     pub tolerations: Vec<TolerationLite>,
     pub has_required_node_affinity: bool,
@@ -27,6 +28,7 @@ pub struct WorkloadSpec {
 pub struct ContainerSpecLite {
     pub name: String,
     pub image: Option<String>,
+    pub is_init: bool,
 
     pub cpu_request_millis: Option<i64>,
     pub cpu_limit_millis: Option<i64>,

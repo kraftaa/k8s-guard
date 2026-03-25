@@ -138,6 +138,28 @@ fn experimental_rule_catches_match_expressions() {
 }
 
 #[test]
+fn init_containers_are_checked() {
+    let mut cmd = Command::cargo_bin("k8s-diff-explainer").unwrap();
+    let output = cmd
+        .arg(fixture("init-old.yaml"))
+        .arg(fixture("init-new.yaml"))
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let stdout = String::from_utf8(output).unwrap();
+    assert!(
+        stdout.contains("init:migrate"),
+        "init container should be labeled in output"
+    );
+    assert!(
+        stdout.contains("Memory limit reduced"),
+        "init container diff should trigger rules"
+    );
+}
+
+#[test]
 fn summary_only_text() {
     let mut cmd = Command::cargo_bin("k8s-diff-explainer").unwrap();
     let output = cmd

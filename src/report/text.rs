@@ -80,7 +80,17 @@ pub fn render_text_string(results: &[ResourceResult]) -> String {
 }
 
 fn print_finding(f: &Finding) {
-    println!("\n[{}] {} {}", f.severity, f.rule_id, f.title);
+    let prefix = if f
+        .container
+        .as_ref()
+        .map(|c| c.starts_with("init:"))
+        .unwrap_or(false)
+    {
+        "[INIT]"
+    } else {
+        ""
+    };
+    println!("\n{}[{}] {} {}", prefix, f.severity, f.rule_id, f.title);
     if let Some(c) = &f.container {
         println!("Container: {}", c);
     }

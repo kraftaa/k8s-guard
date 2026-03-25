@@ -5,8 +5,13 @@ pub fn pair_containers<'a>(
     new: &'a WorkloadSpec,
 ) -> Vec<(&'a ContainerSpecLite, &'a ContainerSpecLite)> {
     let mut pairs = Vec::new();
-    for n in &new.containers {
-        if let Some(o) = old.containers.iter().find(|c| c.name == n.name) {
+    for n in new.containers.iter().chain(new.init_containers.iter()) {
+        if let Some(o) = old
+            .containers
+            .iter()
+            .chain(old.init_containers.iter())
+            .find(|c| c.name == n.name && c.is_init == n.is_init)
+        {
             pairs.push((o, n));
         }
     }
@@ -35,6 +40,14 @@ pub fn cpu_to_string(millis: i64) -> String {
 
 pub fn format_field_path(container: &str, suffix: &str) -> String {
     format!("spec.template.spec.containers[{}].{}", container, suffix)
+}
+
+pub fn container_label(c: &ContainerSpecLite) -> String {
+    if c.is_init {
+        format!("init:{}", c.name)
+    } else {
+        c.name.clone()
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

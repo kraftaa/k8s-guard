@@ -1,6 +1,6 @@
 use crate::model::{Confidence, Finding, Severity, WorkloadSpec};
 use crate::rules::traits::Rule;
-use crate::rules::{base_finding, format_field_path, pair_containers};
+use crate::rules::{base_finding, container_label, format_field_path, pair_containers};
 
 pub struct LivenessWithoutStartupRule;
 
@@ -29,7 +29,7 @@ impl Rule for LivenessWithoutStartupRule {
                         Confidence::High,
                         old,
                         new,
-                        Some(nc.name.clone()),
+                        Some(container_label(nc)),
                         format_field_path(&nc.name, "livenessProbe"),
                         "Liveness probe stricter without startupProbe",
                         oc.liveness_probe.as_ref().map(summarize_probe),

@@ -1,6 +1,6 @@
 use crate::model::{Confidence, Severity, WorkloadSpec};
 use crate::rules::traits::Rule;
-use crate::rules::{base_finding, format_field_path, pair_containers};
+use crate::rules::{base_finding, container_label, format_field_path, pair_containers};
 
 pub struct EnvRemovedRule;
 
@@ -25,7 +25,7 @@ impl Rule for EnvRemovedRule {
                         Confidence::Medium,
                         old,
                         new,
-                        Some(nc.name.clone()),
+                        Some(container_label(nc)),
                         format_field_path(&nc.name, &format!("env[{}]", key)),
                         "Required env var removed",
                         Some(format!("present: {}", key)),
