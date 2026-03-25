@@ -12,4 +12,5 @@ pub struct ResourceResult {
     pub findings: Vec<Finding>,
     pub overall_risk: OverallRisk,
     pub notes: Vec<String>,
+    pub removed: bool,
 }

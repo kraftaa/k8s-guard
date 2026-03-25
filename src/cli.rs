@@ -20,6 +20,9 @@ pub struct Cli {
     /// Only print a one-line summary to stdout (full report can still go to --output)
     #[arg(long)]
     pub summary_only: bool,
+    /// Exit non-zero if any workloads are removed in the new manifest
+    #[arg(long)]
+    pub fail_on_removals: bool,
     /// Fail CI when overall risk meets or exceeds this level
     #[arg(long = "fail-on", value_enum)]
     pub fail_on: Option<FailThreshold>,

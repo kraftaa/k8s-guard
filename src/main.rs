@@ -33,6 +33,7 @@ fn main() -> anyhow::Result<()> {
                     findings,
                     overall_risk,
                     notes: Vec::new(),
+                    removed: false,
                 });
             }
             (None, Some(new_spec)) => {
@@ -44,17 +45,19 @@ fn main() -> anyhow::Result<()> {
                         "New resource detected: {}/{}; no baseline to diff.",
                         new_spec.key.kind, new_spec.key.name
                     )],
+                    removed: false,
                 });
             }
             (Some(old_spec), None) => {
                 results.push(ResourceResult {
                     key: old_spec.key.clone(),
                     findings: Vec::new(),
-                    overall_risk: OverallRisk::Safe,
+                    overall_risk: OverallRisk::Medium,
                     notes: vec![format!(
                         "Resource removed in new manifest: {}/{}; risk not evaluated.",
                         old_spec.key.kind, old_spec.key.name
                     )],
+                    removed: true,
                 });
             }
             (None, None) => {}
@@ -91,13 +94,17 @@ fn main() -> anyhow::Result<()> {
         print_summary(&results);
     }
 
+    let mut exit_fail = false;
     if let Some(threshold) = cli.fail_on {
-        let should_fail = results
+        exit_fail |= results
             .iter()
             .any(|r| meets_threshold(r.overall_risk, threshold));
-        if should_fail {
-            std::process::exit(1);
-        }
+    }
+    if cli.fail_on_removals {
+        exit_fail |= results.iter().any(|r| r.removed);
+    }
+    if exit_fail {
+        std::process::exit(1);
     }
 
     Ok(())

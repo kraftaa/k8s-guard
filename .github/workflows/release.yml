@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+      - name: Build release binary
+        run: |
+          cargo build --release --target ${matrix.target}
+      - name: Package
+        run: |
+          mkdir -p artifacts
+          cp target/${{ matrix.target }}/release/k8s-diff-explainer artifacts/k8s-diff-explainer-${{ matrix.target }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: k8s-diff-explainer-${{ matrix.target }}
+          path: artifacts/k8s-diff-explainer-${{ matrix.target }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/**/k8s-diff-explainer-*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
