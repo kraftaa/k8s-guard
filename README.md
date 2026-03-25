@@ -50,6 +50,10 @@ New: 8
 - `k8s-diff-explainer <old.yaml> <new.yaml>`
 - `--format text|json` (default text)
 - `--fail-on medium|high` sets non-zero exit for CI when overall risk meets threshold.
+- `--fail-on-removals` exits non-zero if any workload disappears in the new manifest.
+- `--experimental` enables selector-drift and other guarded rules.
+- `--output <path>` writes the full report to a file (keeps stdout clean in CI).
+- `--summary-only` prints only a one-line summary to stdout (pair with `--output`).
 
 ## Rules (v1)
 
@@ -83,6 +87,10 @@ Integration smoke tests live in `tests/cli_smoke.rs` and exercise text, JSON, an
 ```bash
 cargo install --path .
 ```
+
+## Release
+
+Push a tag `vX.Y.Z`; GitHub Actions will build Linux/macOS binaries and attach them to the GitHub release.
 
 ## Status
 
