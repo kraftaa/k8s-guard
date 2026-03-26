@@ -1,7 +1,7 @@
 use crate::model::{Confidence, Severity, WorkloadSpec};
 use crate::rules::traits::Rule;
 use crate::rules::{
-    base_finding, container_label, cpu_to_string, format_field_path, pair_containers,
+    base_finding, container_field_path, container_label, cpu_to_string, pair_containers,
 };
 
 pub struct CpuReducedRule;
@@ -25,7 +25,7 @@ impl Rule for CpuReducedRule {
                         old,
                         new,
                         Some(container_label(nc)),
-                        format_field_path(&nc.name, "resources.requests.cpu"),
+                        container_field_path(nc, "resources.requests.cpu"),
                         "CPU request reduced",
                         Some(cpu_to_string(or)),
                         Some(cpu_to_string(nr)),
@@ -49,7 +49,7 @@ impl Rule for CpuReducedRule {
                         old,
                         new,
                         Some(container_label(nc)),
-                        format_field_path(&nc.name, "resources.limits.cpu"),
+                        container_field_path(nc, "resources.limits.cpu"),
                         "CPU limit reduced",
                         Some(cpu_to_string(ol)),
                         Some(cpu_to_string(nl)),

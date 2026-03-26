@@ -1,6 +1,6 @@
 use crate::model::{Confidence, Severity, WorkloadSpec};
 use crate::rules::traits::Rule;
-use crate::rules::{base_finding, container_label, format_field_path, pair_containers};
+use crate::rules::{base_finding, container_field_path, container_label, pair_containers};
 
 pub struct ConfigRefChangedRule;
 
@@ -67,7 +67,7 @@ impl Rule for ConfigRefChangedRule {
                     old,
                     new,
                     Some(container_label(nc)),
-                    format_field_path(&nc.name, "config/secret references"),
+                    container_field_path(nc, "config/secret references"),
                     "Config/Secret reference changed",
                     if old_val.is_empty() { None } else { Some(old_val.join("; ")) },
                     if new_val.is_empty() { None } else { Some(new_val.join("; ")) },

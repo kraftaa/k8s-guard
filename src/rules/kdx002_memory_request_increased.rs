@@ -1,7 +1,7 @@
 use crate::model::{Confidence, Severity, WorkloadSpec};
 use crate::rules::traits::Rule;
 use crate::rules::{
-    base_finding, container_label, format_field_path, mem_to_string, pair_containers,
+    base_finding, container_field_path, container_label, mem_to_string, pair_containers,
 };
 
 pub struct MemoryRequestIncreasedRule;
@@ -37,7 +37,7 @@ impl Rule for MemoryRequestIncreasedRule {
                             old,
                             new,
                             Some(container_label(nc)),
-                            format_field_path(&nc.name, "resources.requests.memory"),
+                            container_field_path(nc, "resources.requests.memory"),
                             "Memory request increased sharply",
                         Some(mem_to_string(old_mem)),
                         Some(mem_to_string(new_mem)),

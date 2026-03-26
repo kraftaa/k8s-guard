@@ -1,6 +1,6 @@
 use crate::model::{Confidence, Severity, WorkloadSpec};
 use crate::rules::traits::Rule;
-use crate::rules::{base_finding, container_label, format_field_path, pair_containers};
+use crate::rules::{base_finding, container_field_path, container_label, pair_containers};
 
 pub struct ImagePullRiskRule;
 
@@ -45,7 +45,7 @@ impl Rule for ImagePullRiskRule {
                         old,
                         new,
                         Some(container_label(nc)),
-                        format_field_path(&nc.name, "image"),
+                        container_field_path(nc, "image"),
                         "Image pull risk introduced",
                         Some(oi.clone()),
                         Some(ni.clone()),

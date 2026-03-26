@@ -65,9 +65,38 @@ fn main() -> anyhow::Result<()> {
     }
 
     if !cli.workloads.is_empty() {
-        let allow: std::collections::HashSet<String> =
-            cli.workloads.iter().map(|s| s.to_string()).collect();
-        results.retain(|r| allow.contains(&r.key.name));
+        let filters: Vec<(Option<String>, Option<String>, String)> = cli
+            .workloads
+            .iter()
+            .map(|w| {
+                let parts: Vec<&str> = w.split('/').collect();
+                match parts.len() {
+                    3 => (
+                        Some(parts[0].to_string()),
+                        Some(parts[1].to_string()),
+                        parts[2].to_string(),
+                    ),
+                    2 => (None, Some(parts[0].to_string()), parts[1].to_string()),
+                    _ => (None, None, parts[0].to_string()),
+                }
+            })
+            .collect();
+
+        results.retain(|r| {
+            filters.iter().any(|(kind, ns, name)| {
+                if let Some(k) = kind
+                    && &r.key.kind != k
+                {
+                    return false;
+                }
+                if let Some(n) = ns
+                    && r.key.namespace.as_deref() != Some(n.as_str())
+                {
+                    return false;
+                }
+                &r.key.name == name
+            })
+        });
     }
 
     if let Some(path) = &cli.output {

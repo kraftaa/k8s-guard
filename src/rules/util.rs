@@ -50,6 +50,14 @@ pub fn container_label(c: &ContainerSpecLite) -> String {
     }
 }
 
+pub fn container_field_path(c: &ContainerSpecLite, suffix: &str) -> String {
+    if c.is_init {
+        format!("spec.template.spec.initContainers[{}].{}", c.name, suffix)
+    } else {
+        format_field_path(&c.name, suffix)
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn base_finding(
     rule_id: &str,
