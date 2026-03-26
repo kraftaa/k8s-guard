@@ -54,6 +54,7 @@ New: 8
 - `--experimental` enables selector-drift and other guarded rules.
 - `--output <path>` writes the full report to a file (keeps stdout clean in CI).
 - `--summary-only` prints only a one-line summary to stdout (pair with `--output`).
+- `--workload <name|ns/name|kind/ns/name>` filter analysis to specific workloads (repeatable).
 
 ## Rules (v1)
 
